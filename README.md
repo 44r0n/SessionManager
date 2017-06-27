@@ -37,31 +37,7 @@ To run the tests just execute de `initsql` script with the `-t` flag:
 
 ## Usage
 
-There are some main functions or stored procedures to make it easy to use.
-
-~~~
-CreateUser ('username','password','mail@mail.com');
-~~~                              
-
-Creates a user, with the username and hashes the password.
-
-~~~
-Login ('username', 'password');
-~~~
-
-Checks if the useer exists with the given username and password. If so, returns an identificative token, if not returns a 0.
-
-~~~
-TokenCleaner ();
-~~~
-
-Cleans the tokens within an predefined time, default time is 30 mins. You can configure this time by inserting it in the table `configuration` setting the `name` to `Expiration time` and `value` to the time in minutes you wish.
-
-~~~
-Logout ('token');
-~~~
-
-Deletes the given token  in the `user_tokens` so the user is no more logged in the sistem.
+*Pending*
 
 
 ## Built With
