@@ -2,7 +2,7 @@
 
 A little MySQL database to manage users.
 
-[![Build status](https://travis-ci.org/44r0n/Sessionmanager.svg)](https://travis-ci.org/44r0n/Sessionmanager)
+[![Build status](https://travis-ci.org/44r0n/SessionManager.svg)](https://travis-ci.org/44r0n/SessionManager)
 [![GitHub release](https://img.shields.io/github/release/44r0n/sessionmanager.svg)](https://github.com/44r0n/Sessionmanager/releases)
 [![Libraries.io for GitHub](https://img.shields.io/librariesio/github/44r0n/Sessionmanager.svg)]()
 
