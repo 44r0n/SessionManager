@@ -1,7 +1,12 @@
 USE sessionmanager;
 BEGIN;
-SELECT tap.plan(2);
+SELECT tap.plan(7);
 SELECT tap.has_table(DATABASE(),'users','Check users table');
+SELECT tap.has_column(DATABASE(),'users','username','Check user name in users');
+SELECT tap.has_column(DATABASE(),'users','password','Check the password in users');
+SELECT tap.has_column(DATABASE(),'users','email','Check the mail in users');
 SELECT tap.has_table(DATABASE(),'user_tokens','Check user_tokens table');
+SELECT tap.has_column(DATABASE(),'user_tokens','user','Check the user in user_tokens');
+SELECT tap.has_column(DATABASE(),'user_tokens','token','Check the token in user_tokens');
 CALL tap.finish();
 ROLLBACK;
