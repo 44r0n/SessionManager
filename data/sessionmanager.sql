@@ -12,7 +12,7 @@ CREATE TABLE configuration (
 
 DROP TABLE IF EXISTS users;
 CREATE TABLE users (
-  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  id CHAR(36)  NOT NULL ,
   username VARCHAR(165) UNIQUE NOT NULL,
   email VARCHAR(165) UNIQUE NOT NULL,
   password VARCHAR(128) NOT NULL,
@@ -24,8 +24,8 @@ CREATE TABLE users (
 
 DROP TABLE IF EXISTS user_tokens;
 CREATE TABLE user_tokens (
-  user INT UNSIGNED NOT NULL,
-  token VARCHAR(32) NOT NULL,
+  user CHAR(36) NOT NULL,
+  token VARCHAR(256) NOT NULL,
   last_date_used DATETIME NOT NULL,
   PRIMARY KEY (user),
   FOREIGN KEY (user) REFERENCES users(id)
