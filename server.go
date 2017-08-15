@@ -5,7 +5,6 @@ import (
 	// Standard library packages
 	"net/http"
 
-	// Third party packages
 	"SessionManager/controllers"
 	"SessionManager/helpers"
 	"SessionManager/models/user"
