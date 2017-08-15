@@ -1,10 +1,18 @@
 sudo: required
 
+languaje:
+  - go
+
+go:
+  - 1.8.x
+
 services:
   - docker
 
 before_install:
   - ./initDocker.sh
+
+install:
   - go get -v github.com/julienschmidt/httprouter
   - go get -v github.com/go-sql-driver/mysql
   - go get -v github.com/tkanos/gonfig
