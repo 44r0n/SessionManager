@@ -3,7 +3,12 @@ function startdoker {
   echo "Uping docker..."
   docker run --detach --name=sessionmanager --env="MYSQL_ROOT_PASSWORD=mypassword" mysql
   docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sessionmanager
+  
+if [ -z "$1" ]; then
   DOCKERIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sessionmanager)
+else
+  DOCKERIP=$1
+fi
 
   until nc -z -v -w30 $DOCKERIP 3306
   do
@@ -23,5 +28,10 @@ else
   fi
 fi
 
-DOCKERIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sessionmanager)
+if [ -z "$1" ]; then
+  DOCKERIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sessionmanager)
+else
+  DOCKERIP=$1
+fi
+
 echo "Service up and runing at $DOCKERIP"

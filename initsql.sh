@@ -1,7 +1,12 @@
 #!/bin/bash
 cd "$(dirname "$0")"
-DOCKERIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sessionmanager)
-echo "Seting up database..."
+if [ -z "$2" ]; then
+  DOCKERIP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' sessionmanager)
+else
+  DOCKERIP=$2
+fi
+
+echo "Seting up database on $DOCKERIP..."
 mysql -uroot -pmypassword -h $DOCKERIP -P 3306 < data/sessionmanager.sql
 if ! [ -z "$1" ]; then
   if [ $1 = "-t" ]; then
@@ -14,11 +19,26 @@ if ! [ -z "$1" ]; then
 fi
 echo "MySQL commands executed at $DOCKERIP"
 
+if [ ! -d "configuration" ]; then
+  mkdir configuration
+fi
+
 if [ -e configuration/configuration.json ]; then
     rm configuration/configuration.json
 fi
-echo '{
-  "port":3306,
-  "ConnString":"root:mypassword@('$DOCKERIP':3306)/sessionmanager"
-}' >> configuration/configuration.json
+
+if [ $DOCKERIP = "127.0.0.1" ]; then
+  echo '{
+    "ip":"'$DOCKERIP'",
+    "port":3306,
+    "ConnString":"root:mypassword@/sessionmanager"
+  }' >> configuration/configuration.json
+else
+  echo '{
+    "ip":"'$DOCKERIP'",
+    "port":3306,
+    "ConnString":"root:mypassword@('$DOCKERIP':3306)/sessionmanager"
+  }' >> configuration/configuration.json
+fi
+
 echo "configuration.json file created"
