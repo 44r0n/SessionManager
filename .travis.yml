@@ -7,4 +7,5 @@ before_install:
   - ./initDocker.sh
 
 script:
-  - ./testall.sh
+  - ./initsql.sh -t
+  - go test ./... -v -database
