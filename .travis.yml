@@ -5,6 +5,11 @@ services:
 
 before_install:
   - ./initDocker.sh
+  - go get github.com/julienschmidt/httprouter
+  - go get github.com/go-sql-driver/mysql
+  - go get github.com/tkanos/gonfig
+  - go get github.com/dgrijalva/jwt-go
+  - go get golang.org/x/crypto/bcrypt
 
 script:
   - ./initsql.sh -t
