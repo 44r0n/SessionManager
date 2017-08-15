@@ -187,6 +187,7 @@ func (uc *UserController) CheckToken(w http.ResponseWriter, r *http.Request, p h
 			Fields:      nil,
 		}
 		uc.responseError(w, httpError)
+		log.Printf("Error Checking Token: %v", err)
 		return
 	}
 
