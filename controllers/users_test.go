@@ -70,7 +70,9 @@ func TestMain(m *testing.M) {
 }
 
 func setupDatabase() {
-	cmdStr := "../initsql.sh"
+	configFile := "../configuration/configuration.json"
+	ip := helpers.GetIP(configFile)
+	cmdStr := "../initsql.sh ''" + ip
 	cmd := exec.Command("/bin/sh", cmdStr)
 	_, err := cmd.Output()
 
@@ -79,7 +81,10 @@ func setupDatabase() {
 		return
 	}
 
-	connString = helpers.GetConnString("../configuration/configuration.json")
+	connString = helpers.GetConnString(configFile)
+	if connString == "" {
+		log.Fatalf("Connection string is empty")
+	}
 }
 
 func teardownFunction() {
@@ -93,11 +98,14 @@ func TestRegisterHandler(t *testing.T) {
 		Convey("It should be registered. With status 201", func() {
 			var uc *UserController
 			if *database {
-				uc = NewUserController(models.NewUserRepository(connString))
+				repo, err := models.NewUserRepository(connString)
+				if err != nil {
+					t.Fatal(err)
+				}
+				uc = NewUserController(repo)
 			} else {
 				uc = NewUserController(NewUserRepositoryTest(false, false, nil, ""))
 			}
-
 			req, err := http.NewRequest("POST", "/Register", bytes.NewBuffer(jsonStr))
 			req.Header.Set("Content-Type", "application/json")
 			if err != nil {
@@ -118,8 +126,12 @@ func TestRegisterHandler(t *testing.T) {
 func TestRegisterRepeatedUser(t *testing.T) {
 	Convey("Given a registered user", t, func() {
 		var repo models.IUserRepositoryInterface
+		var err error
 		if *database {
-			repo = models.NewUserRepository(connString)
+			repo, err = models.NewUserRepository(connString)
+			if err != nil {
+				t.Fatal(err)
+			}
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
@@ -164,8 +176,12 @@ func registerUser(user []byte, userRepo models.IUserRepositoryInterface, t *test
 func TestRegisterRepeatedUserName(t *testing.T) {
 	Convey("Given a registered user", t, func() {
 		var repo models.IUserRepositoryInterface
+		var err error
 		if *database {
-			repo = models.NewUserRepository(connString)
+			repo, err = models.NewUserRepository(connString)
+			if err != nil {
+				t.Fatal(err)
+			}
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
@@ -177,8 +193,12 @@ func TestRegisterRepeatedUserName(t *testing.T) {
 
 		Convey("Cannot register user with the same username", func() {
 			var repo models.IUserRepositoryInterface
+			var err error
 			if *database {
-				repo = models.NewUserRepository(connString)
+				repo, err = models.NewUserRepository(connString)
+				if err != nil {
+					t.Fatal(err)
+				}
 			} else {
 				repo = NewUserRepositoryTest(true, false, nil, "")
 			}
@@ -197,8 +217,12 @@ func TestRegisterRepeatedUserName(t *testing.T) {
 func TestRegisterRepeatedMail(t *testing.T) {
 	Convey("Given a registered user", t, func() {
 		var repo models.IUserRepositoryInterface
+		var err error
 		if *database {
-			repo = models.NewUserRepository(connString)
+			repo, err = models.NewUserRepository(connString)
+			if err != nil {
+				t.Fatal(err)
+			}
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
@@ -210,10 +234,14 @@ func TestRegisterRepeatedMail(t *testing.T) {
 
 		Convey("Cannot register user with the same email", func() {
 			var repo models.IUserRepositoryInterface
+			var err error
 			if *database {
-				repo = models.NewUserRepository(connString)
+				repo, err = models.NewUserRepository(connString)
+				if err != nil {
+					t.Fatal(err)
+				}
 			} else {
-				NewUserRepositoryTest(false, true, nil, "")
+				repo = NewUserRepositoryTest(false, true, nil, "")
 			}
 			rr := registerUser([]byte(`{"name":"RepeatedMail2","email":"repeatusernam2@mail.com","pass":"secretPassword"}`),
 				repo, t)
@@ -237,18 +265,20 @@ func TestRegisterUnexpectedError(t *testing.T) {
 	})
 }
 
-//TODO: integration test, login twice
 func TestLoginOK(t *testing.T) {
 	Convey("Given a valid user, it can log in", t, func() {
 		var repo models.IUserRepositoryInterface
 		if *database {
-			repo = models.NewUserRepository(connString)
+			repo, err := models.NewUserRepository(connString)
+			if err != nil {
+				t.Fatal(err)
+			}
 			user := models.User{
 				UserName: "LogOK",
 				Email:    "logok@mail.com",
 				Password: "secretPassword",
 			}
-			err := repo.Register(user)
+			err = repo.Register(user)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -285,8 +315,12 @@ func simulateLogin(usrt models.IUserRepositoryInterface, jsonUser []byte, t *tes
 func TestLoginNotOK(t *testing.T) {
 	Convey("Given a invalid user, it cannot log in", t, func() {
 		var repo models.IUserRepositoryInterface
+		var err error
 		if *database {
-			repo = models.NewUserRepository(connString)
+			repo, err = models.NewUserRepository(connString)
+			if err != nil {
+				t.Fatal(err)
+			}
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
@@ -315,7 +349,10 @@ func TestLogoutOK(t *testing.T) {
 		var token string
 		var err error
 		if *database {
-			repo = models.NewUserRepository(connString)
+			repo, err = models.NewUserRepository(connString)
+			if err != nil {
+				t.Fatal(err)
+			}
 			user := models.User{
 				UserName: "TestLogout",
 				Email:    "logout@mail.com",

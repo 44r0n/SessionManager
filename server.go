@@ -20,7 +20,11 @@ func main() {
 	connString := helpers.GetConnString("configuration/configuration.json")
 
 	// Get a UserController instance
-	uc := controllers.NewUserController(models.NewUserRepository(connString))
+	repo, err := models.NewUserRepository(connString)
+	if err != nil {
+		log.Fatalf("Cannot load user repository: %v", err)
+	}
+	uc := controllers.NewUserController(repo)
 	r.POST("/Register", uc.Register)
 	r.POST("/Login", uc.Login)
 	r.POST("/Logout", uc.Logout)

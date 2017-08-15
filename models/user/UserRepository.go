@@ -14,10 +14,12 @@ type UserRepository struct {
 }
 
 // NewUserRepository function to get new UserRepository
-func NewUserRepository(connString string) *UserRepository {
+func NewUserRepository(connString string) (*UserRepository, error) {
+	if connString == "" {
+		return nil, fmt.Errorf("connString cannot be void string")
+	}
 	usr := UserRepository{connString}
-	//usr.mysqlconnString = connString
-	return &usr
+	return &usr, nil
 }
 
 // Register function that registers the given user.
