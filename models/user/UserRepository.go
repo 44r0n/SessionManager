@@ -154,7 +154,7 @@ func (usr *UserRepository) CheckToken(token string) (bool, error) {
 	}
 
 	datab := database.NewDatabaseConnection(usr.mysqlconnString)
-	rows, err := datab.ExecuteQuery("SELECT id from user_tokens where user = ? AND token = ?",
+	rows, err := datab.ExecuteQuery("SELECT user from user_tokens where user = ? AND token = ?",
 		user, token)
 	if err != nil {
 		return false, err
