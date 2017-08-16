@@ -1,7 +1,6 @@
 sudo: required
 
-languaje:
-  - go
+languaje: go
 
 go:
   - 1.8
