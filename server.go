@@ -5,9 +5,10 @@ import (
 	// Standard library packages
 	"net/http"
 
-	"SessionManager/controllers"
-	"SessionManager/helpers"
-	"SessionManager/models/user"
+	"github.com/44r0n/SessionManager/helpers"
+
+	"github.com/44r0n/SessionManager/controllers"
+	models "github.com/44r0n/SessionManager/models/user"
 
 	"github.com/julienschmidt/httprouter"
 )

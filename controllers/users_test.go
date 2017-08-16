@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"SessionManager/helpers"
-	"SessionManager/models/user"
 	"bytes"
 	"errors"
 	"flag"
@@ -12,6 +10,9 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+
+	"github.com/44r0n/SessionManager/helpers"
+	models "github.com/44r0n/SessionManager/models/user"
 
 	"github.com/julienschmidt/httprouter"
 	. "github.com/smartystreets/goconvey/convey"

@@ -1,12 +1,13 @@
 package controllers
 
 import (
-	"SessionManager/helpers"
-	"SessionManager/models/user"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/44r0n/SessionManager/helpers"
+	models "github.com/44r0n/SessionManager/models/user"
 
 	"github.com/julienschmidt/httprouter"
 )

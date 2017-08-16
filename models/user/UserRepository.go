@@ -1,8 +1,9 @@
 package models
 
 import (
-	"SessionManager/data"
 	"fmt"
+
+	"github.com/44r0n/SessionManager/data"
 
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
