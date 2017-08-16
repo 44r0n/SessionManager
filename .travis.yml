@@ -4,7 +4,7 @@ languaje:
   - go
 
 go:
-  - 1.8.x
+  - 1.8
 
 services:
   - docker
