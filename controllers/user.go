@@ -18,10 +18,13 @@ type UserController struct {
 }
 
 // NewUserController creates UserController
-func NewUserController(UserRepo models.IUserRepositoryInterface) *UserController {
+func NewUserController(UserRepo models.IUserRepositoryInterface) UserController {
+	if UserRepo == nil {
+		log.Fatal("UserRepo cannot be nil")
+	}
 	usc := new(UserController)
 	usc.userRepo = UserRepo
-	return usc
+	return *usc
 }
 
 // Register function to register an user recieved in json format
@@ -31,18 +34,21 @@ func (uc *UserController) Register(w http.ResponseWriter, r *http.Request, p htt
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
 		uc.handleError(w, err)
+		log.Printf("Failed decoding json: %v", err)
 		return
 	}
 
 	existsUsername, e := uc.userRepo.ExistsUsername(u.UserName)
 	if e != nil {
 		uc.handleError(w, e)
+		log.Printf("Duplicated username: %v", u.UserName)
 		return
 	}
 
 	existsEmail, e2 := uc.userRepo.ExistsEmail(u.Email)
 	if e2 != nil {
 		uc.handleError(w, e2)
+		log.Printf("Duplicated email: %v", u.Email)
 		return
 	}
 
@@ -67,6 +73,7 @@ func (uc *UserController) Register(w http.ResponseWriter, r *http.Request, p htt
 	}
 	if err := uc.userRepo.Register(u); err != nil {
 		uc.handleError(w, err)
+		log.Printf("Error registering user: %v. Error: %v", u.UserName, err)
 		return
 
 	}
@@ -80,11 +87,14 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httpro
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
 		uc.handleError(w, err)
+		log.Printf("Failed decoding json: %v", err)
 		return
 	}
+
 	token, err := uc.userRepo.LogIn(u.UserName, u.Password)
 	if err != nil {
 		uc.handleError(w, err)
+		log.Printf("Failed loging in: %v", err)
 		return
 	}
 
@@ -131,6 +141,7 @@ func (uc *UserController) Logout(w http.ResponseWriter, r *http.Request, p httpr
 			Fields:      nil,
 		}
 		uc.responseError(w, httpError)
+		log.Printf("Error loging out %v", err)
 		return
 	}
 
