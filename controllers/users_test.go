@@ -62,7 +62,10 @@ var (
 func TestMain(m *testing.M) {
 	flag.Parse()
 	if *database {
+		log.Printf("Running tests with database integration")
 		setupDatabase()
+	} else {
+		log.Printf("Running tests with NO database integration")
 	}
 
 	retCode := m.Run()
