@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"testing"
 
 	"github.com/44r0n/SessionManager/helpers"
@@ -49,7 +48,7 @@ func (usrt *UserRepositoryTest) CheckToken(token string) (bool, error) {
 	return usrt.validUser, usrt.err
 }
 
-func NewUserRepositoryTest(user, email bool, errs error, token string) *UserRepositoryTest {
+func NewUserRepositoryTest(user, email bool, errs error, token string) models.IUserRepositoryInterface {
 	usrt := UserRepositoryTest{errs, user, email, token}
 	return &usrt
 }
@@ -75,15 +74,6 @@ func TestMain(m *testing.M) {
 
 func setupDatabase() {
 	configFile := "../configuration/configuration.json"
-	ip := helpers.GetIP(configFile)
-	cmdStr := "../initsql.sh ''" + ip
-	cmd := exec.Command("/bin/sh", cmdStr)
-	_, err := cmd.Output()
-
-	if err != nil {
-		log.Fatalf(err.Error())
-		return
-	}
 
 	connString = helpers.GetConnString(configFile)
 	if connString == "" {
@@ -98,10 +88,10 @@ func teardownFunction() {
 
 func TestRegisterHandler(t *testing.T) {
 	Convey("Given a valid username", t, func() {
-		var jsonStr = []byte(`{"name":"Bob Smith","email":"mail@mail.com","pass":"secretPassword"}`)
+		var jsonStr = []byte(`{"username":"Bob Smith","email":"mail@mail.com","password":"secretPassword"}`)
 
 		Convey("It should be registered. With status 201", func() {
-			var uc *UserController
+			var uc UserController
 			if *database {
 				repo, err := models.NewUserRepository(connString)
 				if err != nil {
@@ -141,14 +131,14 @@ func TestRegisterRepeatedUser(t *testing.T) {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
 
-		rr := registerUser([]byte(`{"name":"Repeated","email":"repeat@mail.com","pass":"secretPassword"}`),
+		rr := registerUser([]byte(`{"username":"Repeated","email":"repeat@mail.com","password":"secretPassword"}`),
 			repo, t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusCreated)
 
 		Convey("Cannot register it with the same username and email", func() {
-			rr := registerUser([]byte(`{"name":"Repeated","email":"repeat@mail.com","pass":"secretPassword"}`),
+			rr := registerUser([]byte(`{"username":"Repeated","email":"repeat@mail.com","password":"secretPassword"}`),
 				NewUserRepositoryTest(true, true, nil, ""), t)
 
 			status := rr.Code
@@ -190,7 +180,7 @@ func TestRegisterRepeatedUserName(t *testing.T) {
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
-		rr := registerUser([]byte(`{"name":"RepeatedUsername","email":"repeatusernam@mail.com","pass":"secretPassword"}`),
+		rr := registerUser([]byte(`{"username":"RepeatedUsername","email":"repeatusernam@mail.com","password":"secretPassword"}`),
 			repo, t)
 
 		status := rr.Code
@@ -207,7 +197,7 @@ func TestRegisterRepeatedUserName(t *testing.T) {
 			} else {
 				repo = NewUserRepositoryTest(true, false, nil, "")
 			}
-			rr := registerUser([]byte(`{"name":"RepeatedUsername","email":"other@mail.com","pass":"secretPassword"}`),
+			rr := registerUser([]byte(`{"username":"RepeatedUsername","email":"other@mail.com","password":"secretPassword"}`),
 				repo, t)
 
 			status := rr.Code
@@ -231,7 +221,7 @@ func TestRegisterRepeatedMail(t *testing.T) {
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
-		rr := registerUser([]byte(`{"name":"RepeatedUsername2","email":"repeatusernam2@mail.com","pass":"secretPassword"}`),
+		rr := registerUser([]byte(`{"username":"RepeatedUsername2","email":"repeatusernam2@mail.com","password":"secretPassword"}`),
 			repo, t)
 
 		status := rr.Code
@@ -248,7 +238,7 @@ func TestRegisterRepeatedMail(t *testing.T) {
 			} else {
 				repo = NewUserRepositoryTest(false, true, nil, "")
 			}
-			rr := registerUser([]byte(`{"name":"RepeatedMail2","email":"repeatusernam2@mail.com","pass":"secretPassword"}`),
+			rr := registerUser([]byte(`{"username":"RepeatedMail2","email":"repeatusernam2@mail.com","password":"secretPassword"}`),
 				repo, t)
 
 			status := rr.Code
@@ -262,7 +252,7 @@ func TestRegisterRepeatedMail(t *testing.T) {
 
 func TestRegisterUnexpectedError(t *testing.T) {
 	Convey("Given a valid user and no database connection", t, func() {
-		rr := registerUser([]byte(`{"name":"RepeatedUsername","email":"repeatusernam@mail.com","pass":"secretPassword"}`),
+		rr := registerUser([]byte(`{"username":"RepeatedUsername","email":"repeatusernam@mail.com","password":"secretPassword"}`),
 			NewUserRepositoryTest(false, false, errors.New("No bd connection"), ""), t)
 
 		status := rr.Code
@@ -273,11 +263,13 @@ func TestRegisterUnexpectedError(t *testing.T) {
 func TestLoginOK(t *testing.T) {
 	Convey("Given a valid user, it can log in", t, func() {
 		var repo models.IUserRepositoryInterface
+		var err error
 		if *database {
-			repo, err := models.NewUserRepository(connString)
+			repo, err = models.NewUserRepository(connString)
 			if err != nil {
-				t.Fatal(err)
+				panic(err)
 			}
+
 			user := models.User{
 				UserName: "LogOK",
 				Email:    "logok@mail.com",
@@ -290,7 +282,8 @@ func TestLoginOK(t *testing.T) {
 		} else {
 			repo = NewUserRepositoryTest(true, false, nil, "1234abcd")
 		}
-		rr := simulateLogin(repo, []byte(`{"name":"LogOK","email":"","pass":"secretPassword"}`), t)
+
+		rr := simulateLogin(&repo, []byte(`{"username":"LogOK","email":"","password":"secretPassword"}`), t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusOK)
@@ -301,8 +294,8 @@ func TestLoginOK(t *testing.T) {
 	})
 }
 
-func simulateLogin(usrt models.IUserRepositoryInterface, jsonUser []byte, t *testing.T) *httptest.ResponseRecorder {
-	uc := NewUserController(usrt)
+func simulateLogin(usrt *models.IUserRepositoryInterface, jsonUser []byte, t *testing.T) *httptest.ResponseRecorder {
+	uc := NewUserController(*usrt)
 	req, err := http.NewRequest("POST", "/Login", bytes.NewBuffer(jsonUser))
 	req.Header.Set("Content-Type", "application/json")
 	if err != nil {
@@ -329,7 +322,7 @@ func TestLoginNotOK(t *testing.T) {
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
-		rr := simulateLogin(repo, []byte(`{"name":"Bob Smitha","email":"","pass":"secretPassword"}`), t)
+		rr := simulateLogin(&repo, []byte(`{"username":"Bob Smitha","email":"","password":"secretPassword"}`), t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusNotFound)
@@ -341,7 +334,8 @@ func TestLoginNotOK(t *testing.T) {
 
 func TestLoginErrorDB(t *testing.T) {
 	Convey("Given a valid user, and fails to connect", t, func() {
-		rr := simulateLogin(NewUserRepositoryTest(false, false, errors.New("No bd connection"), ""), []byte(""), t)
+		repo := NewUserRepositoryTest(false, false, errors.New("No bd connection"), "")
+		rr := simulateLogin(&repo, []byte(""), t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusInternalServerError)
@@ -407,14 +401,15 @@ func TestLogoutNotOK(t *testing.T) {
 
 func TestCheckTokenOK(t *testing.T) {
 	Convey("Given a valid token, it shold return ok when it is checked", t, func() {
-		rr := simulateCheckToken(NewUserRepositoryTest(true, false, nil, "1234abcd"), "1234abcd", t)
+		repo := NewUserRepositoryTest(true, false, nil, "1234abcd")
+		rr := simulateCheckToken(&repo, "1234abcd", t)
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusNoContent)
 	})
 }
 
-func simulateCheckToken(usrt *UserRepositoryTest, token string, t *testing.T) *httptest.ResponseRecorder {
-	uc := NewUserController(usrt)
+func simulateCheckToken(usrt *models.IUserRepositoryInterface, token string, t *testing.T) *httptest.ResponseRecorder {
+	uc := NewUserController(*usrt)
 	req, err := http.NewRequest("POST", "/Token/isValid", nil)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", token)
@@ -432,7 +427,8 @@ func simulateCheckToken(usrt *UserRepositoryTest, token string, t *testing.T) *h
 
 func TestCeckTokenNotOK(t *testing.T) {
 	Convey("Given an invalid token, it should return not found when it is checked", t, func() {
-		rr := simulateCheckToken(NewUserRepositoryTest(false, false, nil, ""), "45jvm", t)
+		repo := NewUserRepositoryTest(false, false, nil, "")
+		rr := simulateCheckToken(&repo, "45jvm", t)
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusNotFound)
 	})
