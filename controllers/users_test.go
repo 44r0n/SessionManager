@@ -86,6 +86,7 @@ func setupDatabase() {
 	if connString == "" {
 		log.Fatalf("Connection string is empty")
 	}
+	log.Printf("The database has been set up wit connection string: %v", connString)
 }
 
 func teardownFunction() {
