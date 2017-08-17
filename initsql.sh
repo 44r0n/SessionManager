@@ -21,6 +21,7 @@ echo "MySQL commands executed at $DOCKERIP"
 
 if [ ! -d "configuration" ]; then
   mkdir configuration
+  echo "Folder configuration created"
 fi
 
 if [ -e configuration/configuration.json ]; then
@@ -33,12 +34,15 @@ if [ $DOCKERIP = "127.0.0.1" ]; then
     "port":3306,
     "ConnString":"root:mypassword@/sessionmanager"
   }' >> configuration/configuration.json
+  echo "configuration.json file created"
+  cat configuration/configuration.json
 else
   echo '{
     "ip":"'$DOCKERIP'",
     "port":3306,
     "ConnString":"root:mypassword@('$DOCKERIP':3306)/sessionmanager"
   }' >> configuration/configuration.json
+  echo "configuration.json file created"
+  cat configuration/configuration.json
 fi
 
-echo "configuration.json file created"
