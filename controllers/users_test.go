@@ -81,7 +81,7 @@ func setupDatabase() {
 	_, err := cmd.Output()
 
 	if err != nil {
-		println(err.Error())
+		log.Fatalf(err.Error())
 		return
 	}
 
