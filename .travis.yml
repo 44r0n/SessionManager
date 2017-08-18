@@ -1,10 +1,22 @@
-sudo: required
+language: go
+
+go: 
+ - release
+ - tip
 
 services:
   - docker
 
-before_install:
+install:
   - ./initDocker.sh
+  - go get -v github.com/julienschmidt/httprouter
+  - go get -v github.com/go-sql-driver/mysql
+  - go get -v github.com/tkanos/gonfig
+  - go get -v github.com/dgrijalva/jwt-go
+  - go get -v golang.org/x/crypto/bcrypt
+  - go get -v github.com/smartystreets/goconvey/convey
 
 script:
-  - ./initsql.sh
+  - ./initsql.sh -t
+  - ./initsql.sh ''
+  - go test ./... -v -database
