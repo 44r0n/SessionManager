@@ -115,7 +115,7 @@ Registers a json given user.
     		}
     	}
     }
-~~~
+    ~~~
 
 * **Sample Call:**
 
