@@ -6,9 +6,9 @@ import (
 	"net/http"
 
 	"github.com/44r0n/SessionManager/helpers"
+	"github.com/44r0n/SessionManager/repository"
 
 	"github.com/44r0n/SessionManager/controllers"
-	models "github.com/44r0n/SessionManager/models/user"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -16,11 +16,11 @@ import (
 func main() {
 	// Instantiate a new router
 	r := httprouter.New()
-	const serverURL = "localhost:3000"
+	const serverURL = "127.0.0.1:3000"
 	connString := helpers.GetConnString("configuration/configuration.json")
 
 	// Get a UserController instance
-	repo, err := models.NewUserRepository(connString)
+	repo, err := repository.NewUserRepository(connString)
 	if err != nil {
 		log.Fatalf("Cannot load user repository: %v", err)
 	}

@@ -5,20 +5,22 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
-	"github.com/44r0n/SessionManager/helpers"
-	models "github.com/44r0n/SessionManager/models/user"
+	"github.com/44r0n/SessionManager/codes"
+	"github.com/44r0n/SessionManager/models"
+	"github.com/44r0n/SessionManager/repository"
 
 	"github.com/julienschmidt/httprouter"
 )
 
 // UserController represents the controller for operating on the User resource
 type UserController struct {
-	userRepo models.IUserRepositoryInterface
+	userRepo repository.IUserRepositoryInterface
 }
 
 // NewUserController creates UserController
-func NewUserController(UserRepo models.IUserRepositoryInterface) UserController {
+func NewUserController(UserRepo repository.IUserRepositoryInterface) UserController {
 	if UserRepo == nil {
 		log.Fatal("UserRepo cannot be nil")
 	}
@@ -29,71 +31,102 @@ func NewUserController(UserRepo models.IUserRepositoryInterface) UserController 
 
 // Register function to register an user recieved in json format
 func (uc *UserController) Register(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	response := models.Response{Error: codes.Unknown}
+	responseData := models.ResponseData{Data: response}
 	log.Printf("/Register")
 	u := models.User{}
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
-		uc.handleError(w, err)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.JSonError,
+			Description: "Failed decoding json"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		log.Printf("Failed decoding json: %v", err)
 		return
 	}
 
 	existsUsername, e := uc.userRepo.ExistsUsername(u.UserName)
 	if e != nil {
-		uc.handleError(w, e)
-		log.Printf("Duplicated username: %v", u.UserName)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.DataBaseError,
+			Description: "There was an error with the database"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
+		log.Printf("Falied cheching if exists username. Error: %v", e)
+		return
+	}
+
+	if existsUsername {
+		response = models.Response{Status: http.StatusConflict,
+			Error:       codes.RepeatedUserName,
+			Description: "Repeated UserName"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		return
 	}
 
 	existsEmail, e2 := uc.userRepo.ExistsEmail(u.Email)
 	if e2 != nil {
-		uc.handleError(w, e2)
-		log.Printf("Duplicated email: %v", u.Email)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.DataBaseError,
+			Description: "There was an error with the database"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
+		log.Printf("Falied cheching if exists email. Error: %v", e)
 		return
 	}
 
-	if existsUsername || existsEmail {
-		var maperrors map[string]string
-		maperrors = make(map[string]string)
-		if existsUsername {
-			maperrors["username"] = "An account already exists with this username"
-		}
-		if existsEmail {
-			maperrors["email"] = "An account already exists with this email"
-		}
-
-		httpError := helpers.HTTPErrorHandler{
-			Status:      http.StatusConflict,
-			Error:       "FIELDS_REPEATED",
-			Description: "One or more fields already exist",
-			Fields:      maperrors,
-		}
-		uc.responseError(w, httpError)
+	if existsEmail {
+		response = models.Response{Status: http.StatusConflict,
+			Error:       codes.RepeatedUserEmail,
+			Description: "Repeated Email"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		return
 	}
+
 	if err := uc.userRepo.Register(u); err != nil {
-		uc.handleError(w, err)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.DataBaseError,
+			Description: "There was an error with the database"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		log.Printf("Error registering user: %v. Error: %v", u.UserName, err)
 		return
 
 	}
-	w.WriteHeader(http.StatusCreated)
+
+	response = models.Response{Status: http.StatusCreated, Error: codes.Ok}
+	responseData.Data = response
+	uc.responseToClient(w, responseData)
+
 }
 
 //Login controller function
 func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	response := models.Response{Error: codes.Unknown}
+	responseData := models.ResponseData{Data: response}
 	log.Printf("/Login")
 	u := models.User{}
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
-		uc.handleError(w, err)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.JSonError,
+			Description: "Failed decoding json"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		log.Printf("Failed decoding json: %v", err)
 		return
 	}
 
 	token, err := uc.userRepo.LogIn(u.UserName, u.Password)
 	if err != nil {
-		uc.handleError(w, err)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.DataBaseError,
+			Description: "There was an error with the database"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		log.Printf("Failed loging in: %v", err)
 		return
 	}
@@ -101,85 +134,67 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httpro
 	w.Header().Set("Content-Type", "application/json")
 	if token != "" {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"response":{"status":"OK","token":"`+token+`","error":""}}`)
+		fmt.Fprint(w, `{"Response":{"Status":`+strconv.Itoa(http.StatusOK)+`,"Error":"", "Token":"`+token+`"}}`)
 		return
 	}
-	w.WriteHeader(http.StatusNotFound)
-	fmt.Fprint(w, `{"response":{"status":"Incorrect user or password","token":"","error":""}}`)
+
+	response = models.Response{Status: http.StatusNotFound,
+		Error:       codes.UserNotFound,
+		Description: "User not found"}
+	responseData.Data = response
+	uc.responseToClient(w, responseData)
 }
 
-func (uc *UserController) responseError(w http.ResponseWriter, httpError helpers.HTTPErrorHandler) {
+func (uc *UserController) responseToClient(w http.ResponseWriter, response models.ResponseData) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(httpError.Status)
-	httpe, e := json.Marshal(httpError)
-	if e != nil {
-		uc.handleError(w, e)
+	w.WriteHeader(response.Data.Status)
+	json, err := json.Marshal(response)
+	if err != nil {
+		log.Fatalf("Failed decodign response to client. Error: %v", err)
 		return
 	}
-	fmt.Fprintf(w, `{"error":%s}`, httpe)
-}
-
-func (uc *UserController) handleError(w http.ResponseWriter, e error) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusInternalServerError)
-	fmt.Fprintf(w, `{"error": {"status":500,"error":"UNCONTROLLED_ERROR", "description":`+e.Error()+`}}`)
+	fmt.Fprintf(w, string(json[:]))
 }
 
 //Logout controller function
 func (uc *UserController) Logout(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	response := models.Response{Error: codes.Unknown}
+	responseData := models.ResponseData{Data: response}
 	log.Printf("/Logout")
 	token := uc.checkTokenHeader(w, r)
 	if token == "" {
+		response = models.Response{Status: http.StatusBadRequest,
+			Error:       codes.NoTokenProvided,
+			Description: "There was no token provided"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		return
 	}
 
 	if err := uc.userRepo.LogOut(token); err != nil {
-		httpError := helpers.HTTPErrorHandler{
-			Status:      http.StatusNotFound,
-			Error:       "FIELDS_REPEATED",
-			Description: "Invalid token",
-			Fields:      nil,
-		}
-		uc.responseError(w, httpError)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.DataBaseError,
+			Description: "There was an error with the database"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		log.Printf("Error loging out %v", err)
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	response = models.Response{Status: http.StatusOK,
+		Error:       codes.Ok,
+		Description: ""}
+	responseData.Data = response
+	uc.responseToClient(w, responseData)
 }
 
 func (uc *UserController) checkTokenHeader(w http.ResponseWriter, r *http.Request) string {
 	arraytoken, exists := r.Header["Authorization"]
 	if !exists {
-		httpError := helpers.HTTPErrorHandler{
-			Status:      http.StatusInternalServerError,
-			Error:       "INVALID_TOKEN",
-			Description: "There must be a valid Authorization token",
-			Fields:      nil,
-		}
-		uc.responseError(w, httpError)
 		return ""
 	}
 
 	if len(arraytoken) == 0 {
-		httpError := helpers.HTTPErrorHandler{
-			Status:      http.StatusInternalServerError,
-			Error:       "INVALID_TOKEN",
-			Description: "There must be a valid Authorization token",
-			Fields:      nil,
-		}
-		uc.responseError(w, httpError)
-		return ""
-	}
-
-	if arraytoken[0] == "" {
-		httpError := helpers.HTTPErrorHandler{
-			Status:      http.StatusNotFound,
-			Error:       "INVALID_TOKEN",
-			Description: "There must be a valid Authorization token",
-			Fields:      nil,
-		}
-		uc.responseError(w, httpError)
 		return ""
 	}
 
@@ -188,25 +203,41 @@ func (uc *UserController) checkTokenHeader(w http.ResponseWriter, r *http.Reques
 
 //CheckToken controller function
 func (uc *UserController) CheckToken(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	response := models.Response{Error: codes.Unknown}
+	responseData := models.ResponseData{Data: response}
 	log.Printf("/Token/isValid")
 	token := uc.checkTokenHeader(w, r)
+	if token == "" {
+		response = models.Response{Status: http.StatusBadRequest,
+			Error:       codes.NoTokenProvided,
+			Description: "No token was provided"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
+		return
+	}
 	result, err := uc.userRepo.CheckToken(token)
 	if err != nil {
-		httpError := helpers.HTTPErrorHandler{
-			Status:      http.StatusInternalServerError,
-			Error:       "Error",
-			Description: "Unexpected error",
-			Fields:      nil,
-		}
-		uc.responseError(w, httpError)
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.DataBaseError,
+			Description: "There was an error with the database"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		log.Printf("Error Checking Token: %v", err)
 		return
 	}
 
 	if result {
-		w.WriteHeader(http.StatusNoContent)
+		response = models.Response{Status: http.StatusOK,
+			Error:       codes.Ok,
+			Description: ""}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
 		return
 	}
 
-	w.WriteHeader(http.StatusNotFound)
+	response = models.Response{Status: http.StatusNotFound,
+		Error:       codes.InvalidToken,
+		Description: "The token is invalid"}
+	responseData.Data = response
+	uc.responseToClient(w, responseData)
 }

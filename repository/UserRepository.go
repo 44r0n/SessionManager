@@ -1,9 +1,10 @@
-package models
+package repository
 
 import (
 	"fmt"
 
 	"github.com/44r0n/SessionManager/data"
+	"github.com/44r0n/SessionManager/models"
 
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
@@ -24,7 +25,7 @@ func NewUserRepository(connString string) (*UserRepository, error) {
 }
 
 // Register function that registers the given user.
-func (usr *UserRepository) Register(user User) error {
+func (usr *UserRepository) Register(user models.User) error {
 	password := []byte(user.Password)
 	hashedPass, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
 	if err != nil {
