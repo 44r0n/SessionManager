@@ -1,8 +1,12 @@
-package models
+package repository
+
+import (
+	"github.com/44r0n/SessionManager/models"
+)
 
 // IUserRepositoryInterface interface of the User repo
 type IUserRepositoryInterface interface {
-	Register(user User) error
+	Register(user models.User) error
 	LogIn(userName, password string) (string, error)
 	LogOut(token string) error
 	ExistsUsername(userName string) (bool, error)

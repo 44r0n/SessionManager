@@ -2,16 +2,20 @@ package controllers
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"testing"
 
+	"github.com/44r0n/SessionManager/codes"
 	"github.com/44r0n/SessionManager/helpers"
-	models "github.com/44r0n/SessionManager/models/user"
+	"github.com/44r0n/SessionManager/models"
+	"github.com/44r0n/SessionManager/repository"
 
 	"github.com/julienschmidt/httprouter"
 	. "github.com/smartystreets/goconvey/convey"
@@ -48,7 +52,7 @@ func (usrt *UserRepositoryTest) CheckToken(token string) (bool, error) {
 	return usrt.validUser, usrt.err
 }
 
-func NewUserRepositoryTest(user, email bool, errs error, token string) models.IUserRepositoryInterface {
+func NewUserRepositoryTest(user, email bool, errs error, token string) repository.IUserRepositoryInterface {
 	usrt := UserRepositoryTest{errs, user, email, token}
 	return &usrt
 }
@@ -88,12 +92,12 @@ func teardownFunction() {
 
 func TestRegisterHandler(t *testing.T) {
 	Convey("Given a valid username", t, func() {
-		var jsonStr = []byte(`{"username":"Bob Smith","email":"mail@mail.com","password":"secretPassword"}`)
+		var jsonStr = []byte(`{"UserName":"Bob Smith","Email":"mail@mail.com","Password":"secretPassword"}`)
 
 		Convey("It should be registered. With status 201", func() {
 			var uc UserController
 			if *database {
-				repo, err := models.NewUserRepository(connString)
+				repo, err := repository.NewUserRepository(connString)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -114,16 +118,24 @@ func TestRegisterHandler(t *testing.T) {
 			router.ServeHTTP(rr, req)
 			status := rr.Code
 			So(status, ShouldEqual, http.StatusCreated)
+			response := models.ResponseData{}
+			err = json.NewDecoder(rr.Body).Decode(&response)
+			if err != nil {
+				t.Fatalf("Failed unmarshaling response: %v", err)
+			}
+			So(response.Data.Status, ShouldEqual, http.StatusCreated)
+			So(response.Data.Error, ShouldEqual, codes.Ok)
+			So(response.Data.Description, ShouldBeEmpty)
 		})
 	})
 }
 
 func TestRegisterRepeatedUser(t *testing.T) {
 	Convey("Given a registered user", t, func() {
-		var repo models.IUserRepositoryInterface
+		var repo repository.IUserRepositoryInterface
 		var err error
 		if *database {
-			repo, err = models.NewUserRepository(connString)
+			repo, err = repository.NewUserRepository(connString)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -131,26 +143,32 @@ func TestRegisterRepeatedUser(t *testing.T) {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
 
-		rr := registerUser([]byte(`{"username":"Repeated","email":"repeat@mail.com","password":"secretPassword"}`),
+		rr := registerUser([]byte(`{"UserName":"Repeated","Email":"repeat@mail.com","Password":"secretPassword"}`),
 			repo, t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusCreated)
 
 		Convey("Cannot register it with the same username and email", func() {
-			rr := registerUser([]byte(`{"username":"Repeated","email":"repeat@mail.com","password":"secretPassword"}`),
+			rr := registerUser([]byte(`{"UserName":"Repeated","Email":"repeat@mail.com","Password":"secretPassword"}`),
 				NewUserRepositoryTest(true, true, nil, ""), t)
 
 			status := rr.Code
 			So(status, ShouldEqual, http.StatusConflict)
 
-			expected := `{"error":{"status":409,"error":"FIELDS_REPEATED","description":"One or more fields already exist","fields":{"email":"An account already exists with this email","username":"An account already exists with this username"}}}`
-			So(expected, ShouldEqual, rr.Body.String())
+			response := models.ResponseData{}
+			err = json.NewDecoder(rr.Body).Decode(&response)
+			if err != nil {
+				t.Fatalf("Failed unmarshaling response: %v", err)
+			}
+			So(response.Data.Status, ShouldEqual, http.StatusConflict)
+			So(response.Data.Error, ShouldEqual, codes.RepeatedUserName)
+			So(response.Data.Description, ShouldEqual, "Repeated UserName")
 		})
 	})
 }
 
-func registerUser(user []byte, userRepo models.IUserRepositoryInterface, t *testing.T) *httptest.ResponseRecorder {
+func registerUser(user []byte, userRepo repository.IUserRepositoryInterface, t *testing.T) *httptest.ResponseRecorder {
 	uc := NewUserController(userRepo)
 
 	req, err := http.NewRequest("POST", "/Register", bytes.NewBuffer(user))
@@ -170,102 +188,123 @@ func registerUser(user []byte, userRepo models.IUserRepositoryInterface, t *test
 
 func TestRegisterRepeatedUserName(t *testing.T) {
 	Convey("Given a registered user", t, func() {
-		var repo models.IUserRepositoryInterface
+		var repo repository.IUserRepositoryInterface
 		var err error
 		if *database {
-			repo, err = models.NewUserRepository(connString)
+			repo, err = repository.NewUserRepository(connString)
 			if err != nil {
 				t.Fatal(err)
 			}
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
-		rr := registerUser([]byte(`{"username":"RepeatedUsername","email":"repeatusernam@mail.com","password":"secretPassword"}`),
+		rr := registerUser([]byte(`{"UserName":"RepeatedUsername","Email":"repeatusernam@mail.com","Password":"secretPassword"}`),
 			repo, t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusCreated)
 
 		Convey("Cannot register user with the same username", func() {
-			var repo models.IUserRepositoryInterface
+			var repo repository.IUserRepositoryInterface
 			var err error
 			if *database {
-				repo, err = models.NewUserRepository(connString)
+				repo, err = repository.NewUserRepository(connString)
 				if err != nil {
 					t.Fatal(err)
 				}
 			} else {
 				repo = NewUserRepositoryTest(true, false, nil, "")
 			}
-			rr := registerUser([]byte(`{"username":"RepeatedUsername","email":"other@mail.com","password":"secretPassword"}`),
+			rr := registerUser([]byte(`{"UserName":"RepeatedUsername","Email":"other@mail.com","Password":"secretPassword"}`),
 				repo, t)
 
 			status := rr.Code
 			So(status, ShouldEqual, http.StatusConflict)
 
-			expected := `{"error":{"status":409,"error":"FIELDS_REPEATED","description":"One or more fields already exist","fields":{"username":"An account already exists with this username"}}}`
-			So(expected, ShouldEqual, rr.Body.String())
+			response := models.ResponseData{}
+			err = json.NewDecoder(rr.Body).Decode(&response)
+			if err != nil {
+				t.Fatalf("Failed unmarshaling response: %v", err)
+			}
+			So(response.Data.Status, ShouldEqual, http.StatusConflict)
+			So(response.Data.Error, ShouldEqual, codes.RepeatedUserName)
+			So(response.Data.Description, ShouldEqual, "Repeated UserName")
 		})
 	})
 }
 
 func TestRegisterRepeatedMail(t *testing.T) {
 	Convey("Given a registered user", t, func() {
-		var repo models.IUserRepositoryInterface
+		var repo repository.IUserRepositoryInterface
 		var err error
 		if *database {
-			repo, err = models.NewUserRepository(connString)
+			repo, err = repository.NewUserRepository(connString)
 			if err != nil {
 				t.Fatal(err)
 			}
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
-		rr := registerUser([]byte(`{"username":"RepeatedUsername2","email":"repeatusernam2@mail.com","password":"secretPassword"}`),
+		rr := registerUser([]byte(`{"UserName":"RepeatedUsername2","Email":"repeatusernam2@mail.com","Password":"secretPassword"}`),
 			repo, t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusCreated)
 
 		Convey("Cannot register user with the same email", func() {
-			var repo models.IUserRepositoryInterface
+			var repo repository.IUserRepositoryInterface
 			var err error
 			if *database {
-				repo, err = models.NewUserRepository(connString)
+				repo, err = repository.NewUserRepository(connString)
 				if err != nil {
 					t.Fatal(err)
 				}
 			} else {
 				repo = NewUserRepositoryTest(false, true, nil, "")
 			}
-			rr := registerUser([]byte(`{"username":"RepeatedMail2","email":"repeatusernam2@mail.com","password":"secretPassword"}`),
+			rr := registerUser([]byte(`{"UserName":"RepeatedMail2","Email":"repeatusernam2@mail.com","Password":"secretPassword"}`),
 				repo, t)
 
 			status := rr.Code
 			So(status, ShouldEqual, http.StatusConflict)
 
-			expected := `{"error":{"status":409,"error":"FIELDS_REPEATED","description":"One or more fields already exist","fields":{"email":"An account already exists with this email"}}}`
-			So(rr.Body.String(), ShouldEqual, expected)
+			response := models.ResponseData{}
+			err = json.NewDecoder(rr.Body).Decode(&response)
+			if err != nil {
+				t.Fatalf("Failed unmarshaling response: %v", err)
+			}
+			So(response.Data.Status, ShouldEqual, http.StatusConflict)
+			So(response.Data.Error, ShouldEqual, codes.RepeatedUserEmail)
+			So(response.Data.Description, ShouldEqual, "Repeated Email")
 		})
 	})
 }
 
 func TestRegisterUnexpectedError(t *testing.T) {
 	Convey("Given a valid user and no database connection", t, func() {
-		rr := registerUser([]byte(`{"username":"RepeatedUsername","email":"repeatusernam@mail.com","password":"secretPassword"}`),
+		rr := registerUser([]byte(`{"UserName":"RepeatedUsername","Email":"repeatusernam@mail.com","Password":"secretPassword"}`),
 			NewUserRepositoryTest(false, false, errors.New("No bd connection"), ""), t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusInternalServerError)
+
+		response := models.ResponseData{}
+		err := json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusInternalServerError)
+		So(response.Data.Error, ShouldEqual, codes.DataBaseError)
+		So(response.Data.Description, ShouldEqual, "There was an error with the database")
 	})
 }
 
 func TestLoginOK(t *testing.T) {
 	Convey("Given a valid user, it can log in", t, func() {
-		var repo models.IUserRepositoryInterface
+		var repo repository.IUserRepositoryInterface
 		var err error
 		if *database {
-			repo, err = models.NewUserRepository(connString)
+			repo, err = repository.NewUserRepository(connString)
 			if err != nil {
 				panic(err)
 			}
@@ -283,18 +322,18 @@ func TestLoginOK(t *testing.T) {
 			repo = NewUserRepositoryTest(true, false, nil, "1234abcd")
 		}
 
-		rr := simulateLogin(&repo, []byte(`{"username":"LogOK","email":"","password":"secretPassword"}`), t)
+		rr := simulateLogin(&repo, []byte(`{"UserName":"LogOK","Email":"","Password":"secretPassword"}`), t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusOK)
 		if !*database {
-			expected := `{"response":{"status":"OK","token":"1234abcd","error":""}}`
+			expected := `{"Response":{"Status":` + strconv.Itoa(http.StatusOK) + `,"Error":"", "Token":"1234abcd"}}`
 			So(rr.Body.String(), ShouldEqual, expected)
 		}
 	})
 }
 
-func simulateLogin(usrt *models.IUserRepositoryInterface, jsonUser []byte, t *testing.T) *httptest.ResponseRecorder {
+func simulateLogin(usrt *repository.IUserRepositoryInterface, jsonUser []byte, t *testing.T) *httptest.ResponseRecorder {
 	uc := NewUserController(*usrt)
 	req, err := http.NewRequest("POST", "/Login", bytes.NewBuffer(jsonUser))
 	req.Header.Set("Content-Type", "application/json")
@@ -312,43 +351,58 @@ func simulateLogin(usrt *models.IUserRepositoryInterface, jsonUser []byte, t *te
 
 func TestLoginNotOK(t *testing.T) {
 	Convey("Given a invalid user, it cannot log in", t, func() {
-		var repo models.IUserRepositoryInterface
+		var repo repository.IUserRepositoryInterface
 		var err error
 		if *database {
-			repo, err = models.NewUserRepository(connString)
+			repo, err = repository.NewUserRepository(connString)
 			if err != nil {
 				t.Fatal(err)
 			}
 		} else {
 			repo = NewUserRepositoryTest(false, false, nil, "")
 		}
-		rr := simulateLogin(&repo, []byte(`{"username":"Bob Smitha","email":"","password":"secretPassword"}`), t)
+		rr := simulateLogin(&repo, []byte(`{"UserName":"Bob Smitha","Email":"","Password":"secretPassword"}`), t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusNotFound)
 
-		expected := `{"response":{"status":"Incorrect user or password","token":"","error":""}}`
-		So(rr.Body.String(), ShouldEqual, expected)
+		response := models.ResponseData{}
+		err = json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusNotFound)
+		So(response.Data.Error, ShouldEqual, codes.UserNotFound)
+		So(response.Data.Description, ShouldEqual, "User not found")
 	})
 }
 
 func TestLoginErrorDB(t *testing.T) {
 	Convey("Given a valid user, and fails to connect", t, func() {
 		repo := NewUserRepositoryTest(false, false, errors.New("No bd connection"), "")
-		rr := simulateLogin(&repo, []byte(""), t)
+		rr := simulateLogin(&repo, []byte(`{"UserName":"Bob Smitha","Password":"secretPassword"}`), t)
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusInternalServerError)
+
+		response := models.ResponseData{}
+		err := json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusInternalServerError)
+		So(response.Data.Error, ShouldEqual, codes.DataBaseError)
+		So(response.Data.Description, ShouldEqual, "There was an error with the database")
 	})
 }
 
 func TestLogoutOK(t *testing.T) {
 	Convey("Given a valid token, it should log out", t, func() {
-		var repo models.IUserRepositoryInterface
+		var repo repository.IUserRepositoryInterface
 		var token string
 		var err error
 		if *database {
-			repo, err = models.NewUserRepository(connString)
+			repo, err = repository.NewUserRepository(connString)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -369,11 +423,20 @@ func TestLogoutOK(t *testing.T) {
 		rr := simulateLogout(repo, token, t)
 
 		status := rr.Code
-		So(status, ShouldEqual, http.StatusNoContent)
+		So(status, ShouldEqual, http.StatusOK)
+
+		response := models.ResponseData{}
+		err = json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusOK)
+		So(response.Data.Error, ShouldEqual, codes.Ok)
+		So(response.Data.Description, ShouldBeEmpty)
 	})
 }
 
-func simulateLogout(usrt models.IUserRepositoryInterface, token string, t *testing.T) *httptest.ResponseRecorder {
+func simulateLogout(usrt repository.IUserRepositoryInterface, token string, t *testing.T) *httptest.ResponseRecorder {
 	uc := NewUserController(usrt)
 	req, err := http.NewRequest("POST", "/Logout", nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -395,7 +458,16 @@ func TestLogoutNotOK(t *testing.T) {
 		rr := simulateLogout(NewUserRepositoryTest(false, false, nil, ""), "", t)
 
 		status := rr.Code
-		So(status, ShouldEqual, http.StatusNotFound)
+		So(status, ShouldEqual, http.StatusBadRequest)
+
+		response := models.ResponseData{}
+		err := json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusBadRequest)
+		So(response.Data.Error, ShouldEqual, codes.NoTokenProvided)
+		So(response.Data.Description, ShouldEqual, "There was no token provided")
 	})
 }
 
@@ -404,11 +476,20 @@ func TestCheckTokenOK(t *testing.T) {
 		repo := NewUserRepositoryTest(true, false, nil, "1234abcd")
 		rr := simulateCheckToken(&repo, "1234abcd", t)
 		status := rr.Code
-		So(status, ShouldEqual, http.StatusNoContent)
+		So(status, ShouldEqual, http.StatusOK)
+
+		response := models.ResponseData{}
+		err := json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusOK)
+		So(response.Data.Error, ShouldEqual, codes.Ok)
+		So(response.Data.Description, ShouldBeEmpty)
 	})
 }
 
-func simulateCheckToken(usrt *models.IUserRepositoryInterface, token string, t *testing.T) *httptest.ResponseRecorder {
+func simulateCheckToken(usrt *repository.IUserRepositoryInterface, token string, t *testing.T) *httptest.ResponseRecorder {
 	uc := NewUserController(*usrt)
 	req, err := http.NewRequest("POST", "/Token/isValid", nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -431,6 +512,15 @@ func TestCeckTokenNotOK(t *testing.T) {
 		rr := simulateCheckToken(&repo, "45jvm", t)
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusNotFound)
+
+		response := models.ResponseData{}
+		err := json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusNotFound)
+		So(response.Data.Error, ShouldEqual, codes.InvalidToken)
+		So(response.Data.Description, ShouldEqual, "The token is invalid")
 	})
 
 }
