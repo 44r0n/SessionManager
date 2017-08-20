@@ -97,7 +97,16 @@ Registers a json given user.
 *   **Success Response:**
 
 *   **Code:** 201 CREATED<br />
-      **Content:** No content
+      **Content:**
+      ~~~json
+      {
+      	"Response": {
+      		"Status": 201,
+      		"Error": 1,
+      		"Description": ""
+      	}
+      }
+      ~~~
 
 *   **Error Response:**
 
@@ -105,30 +114,26 @@ Registers a json given user.
     **Content:**
     ~~~json
     {
-    	"error": {
-    		"status": 409,
-    		"error": "FIELDS_REPEATED",
-    		"description": "One or more fields already exist",
-    		"fields": {
-    			"email": "An account already exists with this email",
-    			"username": "An account already exists with this username"
-    		}
+    	"Response": {
+    		"Status": 409,
+    		"Error": -2,
+    		"Description": "Repeated UserName"
     	}
     }
     ~~~
 
-* **Sample Call:**
+*   **Sample Call:**
 
-  ~~~javascript
-    $.ajax({
-      url: "/Register",
-      dataType: "json",
-      type : "POST",
-      201 : function(r) {
-        console.log(r);
-      }
-    });
-  ~~~
+    ~~~javascript
+      $.ajax({
+        url: "/Register",
+        dataType: "json",
+        type : "POST",
+        201 : function(r) {
+          console.log(r);
+        }
+      });
+    ~~~
 ----
 ##### Login User
 
@@ -161,10 +166,10 @@ Registers a json given user.
         **Content:**
         ~~~json
         {
-        	"response": {
-        		"status": "OK",
-        		"token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQxZmY1MDE4LTgyYjgtMTFlNy1hMGQ1LTAyNDJhYzExMDAwMiJ9.vwm1JhqfPhI6Vj-A4BubhaGyrSpGSKYQ246JSPQqd6lZBrkpuDrpYem79baUJPQDXoduw14j6x26KkK8wprzTg",
-        		"error": ""
+        	"Response": {
+        		"Status": 200,
+        		"Token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjJlZjM5NjQ0LTg1YjYtMTFlNy04Y2Q1LTAyNDJhYzExMDAwMiJ9.87Ok320Qdj6JQ_xS5cBngc1VcL2yuPvUnCSfYgv5qrEI1FBbcCHnoUdUtBGn3pCk0qYD_cWljaNnprHLwOPkKQ",
+        		"Error": 1
         	}
         }
         ~~~
@@ -175,10 +180,10 @@ Registers a json given user.
     **Content:**
       ~~~json
       {
-      	"response": {
-      		"status": "Incorrect user or password",
-      		"token": "",
-      		"error": ""
+      	"Response": {
+      		"Status": 404,
+      		"Error": -8,
+      		"Description": "User not found"
       	}
       }
       ~~~
@@ -222,15 +227,31 @@ Validates a given token.
 
 *   **Success Response:**
 
-    *   **Code:** 204 NO CONTENT<br />
+    *   **Code:** 200 NO CONTENT<br />
         **Content:**
-          None
+          ~~~json
+          {
+          	"Response": {
+          		"Status": 200,
+          		"Error": 1,
+          		"Description": ""
+          	}
+          }
+          ~~~
 
 *   **Error Response:**
 
 *   **Code:** 404 NOT FOUND <br />
     **Content:**
-      None
+      ~~~json
+      {
+      	"Response": {
+      		"Status": 404,
+      		"Error": -7,
+      		"Description": "The token is invalid"
+      	}
+      }
+      ~~~
 
 *   **Sample Call:**
     ~~~javascript
@@ -271,23 +292,17 @@ Validates a given token.
 
 *   **Success Response:**
 
-    *   **Code:** 204 NO CONTENT<br />
+    *   **Code:** 200 NO CONTENT<br />
         **Content:**
-          None
-
-*   **Error Response:**
-
-*   **Code:** 404 NOT FOUND <br />
-    **Content:**
-      ~~~json
-      {
-      	"response": {
-      		"status": "Incorrect user or password",
-      		"token": "",
-      		"error": ""
-      	}
-      }
-      ~~~
+          ~~~json
+          {
+          	"Response": {
+          		"Status": 200,
+          		"Error": 1,
+          		"Description": ""
+          	}
+          }
+          ~~~
 
 *   **Sample Call:**
     ~~~javascript
@@ -295,11 +310,26 @@ Validates a given token.
         url: "/Register",
         dataType: "json",
         type : "POST",
-        201 : function(r) {
+        200 : function(r) {
           console.log(r);
         }
       });
     ~~~
+
+#### Error codes
+As seen, in all responses have an error code. Those are for a quick check of the response apart from the http response code. Here are the codes:
+
+| Code     | Description     |
+| :------------- | :------------- |
+| 1       | Ok       |
+| -1 | Unknown error |
+| -2 | Repeated User Name |
+| -3 | Repeated User Email |
+| -4 | Database error |
+| -5 | Json Error |
+| -6 | No token provided |
+| -7 | Invalid token |
+| -8 | User Not Found |
 
 ## Built With
 

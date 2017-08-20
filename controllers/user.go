@@ -134,7 +134,7 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httpro
 	w.Header().Set("Content-Type", "application/json")
 	if token != "" {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, `{"Response":{"Status":`+strconv.Itoa(http.StatusOK)+`,"Error":"", "Token":"`+token+`"}}`)
+		fmt.Fprint(w, `{"Response":{"Status":`+strconv.Itoa(http.StatusOK)+`,"Token":"`+token+`","Error":`+strconv.Itoa(codes.Ok)+`}}`)
 		return
 	}
 
