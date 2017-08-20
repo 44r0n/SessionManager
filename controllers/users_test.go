@@ -327,7 +327,7 @@ func TestLoginOK(t *testing.T) {
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusOK)
 		if !*database {
-			expected := `{"Response":{"Status":` + strconv.Itoa(http.StatusOK) + `,"Error":"", "Token":"1234abcd"}}`
+			expected := `{"Response":{"Status":` + strconv.Itoa(http.StatusOK) + `,"Token":"1234abcd","Error":` + strconv.Itoa(codes.Ok) + `}}`
 			So(rr.Body.String(), ShouldEqual, expected)
 		}
 	})
