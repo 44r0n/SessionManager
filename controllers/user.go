@@ -37,12 +37,22 @@ func (uc *UserController) Register(w http.ResponseWriter, r *http.Request, p htt
 	u := models.User{}
 	err := json.NewDecoder(r.Body).Decode(&u)
 	if err != nil {
-		response = models.Response{Status: http.StatusInternalServerError,
+		response = models.Response{Status: http.StatusBadRequest,
 			Error:       codes.JSonError,
 			Description: "Failed decoding json"}
 		responseData.Data = response
 		uc.responseToClient(w, responseData)
 		log.Printf("Failed decoding json: %v", err)
+		return
+	}
+
+	if u.UserName == "" || u.Password == "" || u.Email == "" {
+		response = models.Response{Status: http.StatusBadRequest,
+			Error:       codes.JSonError,
+			Description: "Some params required are empty"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
+		log.Printf("Some required params are empty: %v", err)
 		return
 	}
 

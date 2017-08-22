@@ -130,6 +130,34 @@ func TestRegisterHandler(t *testing.T) {
 	})
 }
 
+func TestRegisterBadJon(t *testing.T) {
+	Convey("Given an invalid json to register, it should return a bad request", t, func() {
+		var jsonStr = []byte(`{"user":{"username":"Aaron","email":"correo@mail.com","password":"secretP1assword"}}`)
+		uc := NewUserController(NewUserRepositoryTest(false, false, nil, ""))
+		req, err := http.NewRequest("POST", "/Register", bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-Type", "application/json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		router := httprouter.New()
+
+		router.Handle("POST", "/Register", uc.Register)
+		router.ServeHTTP(rr, req)
+		status := rr.Code
+		So(status, ShouldEqual, http.StatusBadRequest)
+		response := models.ResponseData{}
+		err = json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusBadRequest)
+		So(response.Data.Error, ShouldEqual, codes.JSonError)
+		So(response.Data.Description, ShouldEqual, "Some params required are empty")
+	})
+}
+
 func TestRegisterRepeatedUser(t *testing.T) {
 	Convey("Given a registered user", t, func() {
 		var repo repository.IUserRepositoryInterface
@@ -522,5 +550,4 @@ func TestCeckTokenNotOK(t *testing.T) {
 		So(response.Data.Error, ShouldEqual, codes.InvalidToken)
 		So(response.Data.Description, ShouldEqual, "The token is invalid")
 	})
-
 }
