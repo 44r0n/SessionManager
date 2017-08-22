@@ -115,6 +115,7 @@ func (uc *UserController) Register(w http.ResponseWriter, r *http.Request, p htt
 
 //Login controller function
 func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+	const passError = "crypto/bcrypt: hashedPassword is not the hash of the given password"
 	response := models.Response{Error: codes.Unknown}
 	responseData := models.ResponseData{Data: response}
 	log.Printf("/Login")
@@ -132,6 +133,14 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httpro
 
 	token, err := uc.userRepo.LogIn(u.UserName, u.Password)
 	if err != nil {
+		if err.Error() == passError {
+			response = models.Response{Status: http.StatusNotFound,
+				Error:       codes.UserNotFound,
+				Description: "User not found"}
+			responseData.Data = response
+			uc.responseToClient(w, responseData)
+			return
+		}
 		response = models.Response{Status: http.StatusInternalServerError,
 			Error:       codes.DataBaseError,
 			Description: "There was an error with the database"}

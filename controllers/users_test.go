@@ -361,6 +361,45 @@ func TestLoginOK(t *testing.T) {
 	})
 }
 
+func TestLoginBadPassword(t *testing.T) {
+	Convey("Given an invalid Password of a registered user, it should return not found", t, func() {
+		var repo repository.IUserRepositoryInterface
+		var err error
+		if *database {
+			repo, err = repository.NewUserRepository(connString)
+			if err != nil {
+				panic(err)
+			}
+
+			user := models.User{
+				UserName: "LogOK2",
+				Email:    "logok2@mail.com",
+				Password: "secretPassword",
+			}
+			err = repo.Register(user)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			repo = NewUserRepositoryTest(false, false, nil, "")
+		}
+
+		rr := simulateLogin(&repo, []byte(`{"UserName":"LogOK2","Email":"","Password":"secretPassworda"}`), t)
+
+		status := rr.Code
+		So(status, ShouldEqual, http.StatusNotFound)
+
+		response := models.ResponseData{}
+		err = json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusNotFound)
+		So(response.Data.Error, ShouldEqual, codes.UserNotFound)
+		So(response.Data.Description, ShouldEqual, "User not found")
+	})
+}
+
 func simulateLogin(usrt *repository.IUserRepositoryInterface, jsonUser []byte, t *testing.T) *httptest.ResponseRecorder {
 	uc := NewUserController(*usrt)
 	req, err := http.NewRequest("POST", "/Login", bytes.NewBuffer(jsonUser))
