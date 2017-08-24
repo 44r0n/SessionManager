@@ -184,7 +184,7 @@ func (uc *UserController) Logout(w http.ResponseWriter, r *http.Request, p httpr
 	if token == "" {
 		response = models.Response{Status: http.StatusBadRequest,
 			Error:       codes.NoTokenProvided,
-			Description: "There was no token provided"}
+			Description: "No token was provided"}
 		responseData.Data = response
 		uc.responseToClient(w, responseData)
 		return
