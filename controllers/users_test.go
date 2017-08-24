@@ -534,7 +534,7 @@ func TestLogoutNotOK(t *testing.T) {
 		}
 		So(response.Data.Status, ShouldEqual, http.StatusBadRequest)
 		So(response.Data.Error, ShouldEqual, codes.NoTokenProvided)
-		So(response.Data.Description, ShouldEqual, "There was no token provided")
+		So(response.Data.Description, ShouldEqual, "No token was provided")
 	})
 }
 
