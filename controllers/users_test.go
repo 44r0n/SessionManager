@@ -130,6 +130,34 @@ func TestRegisterHandler(t *testing.T) {
 	})
 }
 
+func TestRegisterBadJon(t *testing.T) {
+	Convey("Given an invalid json to register, it should return a bad request", t, func() {
+		var jsonStr = []byte(`{"user":{"username":"Aaron","email":"correo@mail.com","password":"secretP1assword"}}`)
+		uc := NewUserController(NewUserRepositoryTest(false, false, nil, ""))
+		req, err := http.NewRequest("POST", "/Register", bytes.NewBuffer(jsonStr))
+		req.Header.Set("Content-Type", "application/json")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rr := httptest.NewRecorder()
+		router := httprouter.New()
+
+		router.Handle("POST", "/Register", uc.Register)
+		router.ServeHTTP(rr, req)
+		status := rr.Code
+		So(status, ShouldEqual, http.StatusBadRequest)
+		response := models.ResponseData{}
+		err = json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusBadRequest)
+		So(response.Data.Error, ShouldEqual, codes.JSonError)
+		So(response.Data.Description, ShouldEqual, "Some params required are empty")
+	})
+}
+
 func TestRegisterRepeatedUser(t *testing.T) {
 	Convey("Given a registered user", t, func() {
 		var repo repository.IUserRepositoryInterface
@@ -333,6 +361,45 @@ func TestLoginOK(t *testing.T) {
 	})
 }
 
+func TestLoginBadPassword(t *testing.T) {
+	Convey("Given an invalid Password of a registered user, it should return not found", t, func() {
+		var repo repository.IUserRepositoryInterface
+		var err error
+		if *database {
+			repo, err = repository.NewUserRepository(connString)
+			if err != nil {
+				panic(err)
+			}
+
+			user := models.User{
+				UserName: "LogOK2",
+				Email:    "logok2@mail.com",
+				Password: "secretPassword",
+			}
+			err = repo.Register(user)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			repo = NewUserRepositoryTest(false, false, nil, "")
+		}
+
+		rr := simulateLogin(&repo, []byte(`{"UserName":"LogOK2","Email":"","Password":"secretPassworda"}`), t)
+
+		status := rr.Code
+		So(status, ShouldEqual, http.StatusNotFound)
+
+		response := models.ResponseData{}
+		err = json.NewDecoder(rr.Body).Decode(&response)
+		if err != nil {
+			t.Fatalf("Failed unmarshaling response: %v", err)
+		}
+		So(response.Data.Status, ShouldEqual, http.StatusNotFound)
+		So(response.Data.Error, ShouldEqual, codes.UserNotFound)
+		So(response.Data.Description, ShouldEqual, "User not found")
+	})
+}
+
 func simulateLogin(usrt *repository.IUserRepositoryInterface, jsonUser []byte, t *testing.T) *httptest.ResponseRecorder {
 	uc := NewUserController(*usrt)
 	req, err := http.NewRequest("POST", "/Login", bytes.NewBuffer(jsonUser))
@@ -467,7 +534,7 @@ func TestLogoutNotOK(t *testing.T) {
 		}
 		So(response.Data.Status, ShouldEqual, http.StatusBadRequest)
 		So(response.Data.Error, ShouldEqual, codes.NoTokenProvided)
-		So(response.Data.Description, ShouldEqual, "There was no token provided")
+		So(response.Data.Description, ShouldEqual, "No token was provided")
 	})
 }
 
@@ -522,5 +589,4 @@ func TestCeckTokenNotOK(t *testing.T) {
 		So(response.Data.Error, ShouldEqual, codes.InvalidToken)
 		So(response.Data.Description, ShouldEqual, "The token is invalid")
 	})
-
 }

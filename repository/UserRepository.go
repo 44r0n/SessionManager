@@ -99,6 +99,15 @@ func (usr *UserRepository) LogIn(userName string, password string) (string, erro
 		return "", err
 	}
 
+	existsToken, err := usr.CheckToken(tokenString)
+	if err != nil {
+		return "", err
+	}
+
+	if existsToken {
+		return tokenString, nil
+	}
+
 	if err = datab.ExecuteNonQuery("INSERT INTO user_tokens (user, token, last_date_used) VALUES (?,?,NOW())", idChecker, tokenString); err != nil {
 		return "", err
 	}
