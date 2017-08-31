@@ -1,11 +1,14 @@
 package helpers
 
 import (
+	"flag"
 	"log"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+var database = flag.Bool("database", false, "run database integration tests")
 
 func TestTokenizeAndDetokenize(t *testing.T) {
 	Convey("Given a text it can be tokenized and detokenized", t, func() {
@@ -16,7 +19,7 @@ func TestTokenizeAndDetokenize(t *testing.T) {
 
 		So(token, ShouldNotBeEmpty)
 
-		detoken, err := GetUserFromToken(token)
+		detoken, err := GetFromToken(token)
 		if err != nil {
 			t.Fatal(err)
 		}
