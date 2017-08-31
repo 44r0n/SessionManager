@@ -576,7 +576,7 @@ func simulateCheckToken(usrt *repository.IUserRepositoryInterface, token string,
 func TestCeckTokenNotOK(t *testing.T) {
 	Convey("Given an invalid token, it should return not found when it is checked", t, func() {
 		repo := NewUserRepositoryTest(false, false, nil, "")
-		rr := simulateCheckToken(&repo, "45jvm", t)
+		rr := simulateCheckToken(&repo, "qwepoinfsaldkjnvqpwoiuehfasdsckjndqo", t)
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusNotFound)
 

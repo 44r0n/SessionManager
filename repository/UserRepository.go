@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/44r0n/SessionManager/data"
+	"github.com/44r0n/SessionManager/helpers"
 	"github.com/44r0n/SessionManager/models"
 
-	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -94,7 +94,7 @@ func (usr *UserRepository) LogIn(userName string, password string) (string, erro
 		return "", err
 	}
 
-	tokenString, err := tokenize(idChecker)
+	tokenString, err := helpers.Tokenize(idChecker)
 	if err != nil {
 		return "", err
 	}
@@ -115,20 +115,9 @@ func (usr *UserRepository) LogIn(userName string, password string) (string, erro
 	return tokenString, nil
 }
 
-func tokenize(id string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
-		"id": id,
-	})
-	tokenString, err := token.SignedString([]byte("SecretKey"))
-	if err != nil {
-		return "", err
-	}
-	return tokenString, nil
-}
-
 // LogOut function
 func (usr *UserRepository) LogOut(token string) error {
-	user, err := getUserFromToken(token)
+	user, err := helpers.GetFromToken(token)
 	if err != nil {
 		return err
 	}
@@ -139,34 +128,15 @@ func (usr *UserRepository) LogOut(token string) error {
 	return nil
 }
 
-func getUserFromToken(tokenString string) (string, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-		}
-
-		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
-		return []byte("SecretKey"), nil
-	})
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		return claims["id"].(string), nil
-	}
-
-	return "", err
-}
-
 // CheckToken function
 func (usr *UserRepository) CheckToken(token string) (bool, error) {
-	user, err := getUserFromToken(token)
+	user, err := helpers.GetFromToken(token)
 	if err != nil {
 		return false, err
 	}
 
 	datab := database.NewDatabaseConnection(usr.mysqlconnString)
-	rows, err := datab.ExecuteQuery("SELECT user from user_tokens where user = ? AND token = ?",
-		user, token)
+	rows, err := datab.ExecuteQuery("SELECT user from user_tokens where user = ? AND token = ?", user, token)
 	if err != nil {
 		return false, err
 	}
