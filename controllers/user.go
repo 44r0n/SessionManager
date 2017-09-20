@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/44r0n/SessionManager/helpers"
+
 	"github.com/44r0n/SessionManager/codes"
 	"github.com/44r0n/SessionManager/models"
 	"github.com/44r0n/SessionManager/repository"
@@ -131,22 +133,41 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httpro
 		return
 	}
 
-	token, err := uc.userRepo.LogIn(u.UserName, u.Password)
+	userID, pass, err := uc.userRepo.GetIDAndPassword(u.UserName)
 	if err != nil {
-		if err.Error() == passError {
-			response = models.Response{Status: http.StatusNotFound,
-				Error:       codes.UserNotFound,
-				Description: "User not found"}
-			responseData.Data = response
-			uc.responseToClient(w, responseData)
-			return
-		}
 		response = models.Response{Status: http.StatusInternalServerError,
 			Error:       codes.DataBaseError,
 			Description: "There was an error with the database"}
 		responseData.Data = response
 		uc.responseToClient(w, responseData)
 		log.Printf("Failed loging in: %v", err)
+		return
+	}
+
+	if pass == "" {
+		response = models.Response{Status: http.StatusNotFound,
+			Error:       codes.UserNotFound,
+			Description: "User not found"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
+		return
+	}
+
+	err = helpers.CheckHash(pass, u.Password)
+	if err != nil {
+		response = models.Response{Status: http.StatusNotFound,
+			Error:       codes.UserNotFound,
+			Description: "User not found"}
+		responseData.Data = response
+		uc.responseToClient(w, responseData)
+		log.Printf("Failed checking password in: %v", err)
+		return
+	}
+
+	token, err := helpers.Tokenize(userID)
+
+	if err != nil {
+		log.Printf("Failed generating token: %v", err)
 		return
 	}
 
@@ -190,7 +211,15 @@ func (uc *UserController) Logout(w http.ResponseWriter, r *http.Request, p httpr
 		return
 	}
 
-	if err := uc.userRepo.LogOut(token); err != nil {
+	userID, err := helpers.GetFromToken(token)
+	if err != nil {
+		response = models.Response{Status: http.StatusInternalServerError,
+			Error:       codes.InvalidToken,
+			Description: "The token is invalid"}
+		return
+	}
+
+	if err := uc.userRepo.DeleteToken(userID, token); err != nil {
 		response = models.Response{Status: http.StatusInternalServerError,
 			Error:       codes.DataBaseError,
 			Description: "There was an error with the database"}

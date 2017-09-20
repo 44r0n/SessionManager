@@ -34,3 +34,17 @@ func TestDetokenizeWrongToken(t *testing.T) {
 		So(err, ShouldNotBeNil)
 	})
 }
+
+func TestHashsAndCheckHash(t *testing.T) {
+	Convey("Given a password, the helper can hash and check the hash", t, func() {
+		const pass = "testPasswod"
+		hashedPass, err := GenerateHash(pass)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = CheckHash(hashedPass, pass)
+		if err != nil {
+			t.Fatal(err)
+		}
+	})
+}
