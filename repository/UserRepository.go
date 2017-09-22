@@ -70,53 +70,35 @@ func (usr *UserRepository) ExistsEmail(email string) (bool, error) {
 	return false, nil
 }
 
-// LogIn Logs In the user
-func (usr *UserRepository) LogIn(userName string, password string) (string, error) {
+// GetIDAndPassword from a given userName
+func (usr *UserRepository) GetIDAndPassword(userName string) (string, string, error) {
 	datab := database.NewDatabaseConnection(usr.mysqlconnString)
-	rows, err := datab.ExecuteQuery("SELECT id, password from users where username = ? LIMIT 1",
-		userName)
+	rows, err := datab.ExecuteQuery("SELECT id, password from users where username = ? LIMIT 1", userName)
+
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	var idChecker, storedPassword string
+	var idChecker, storedPasswod string
 	rows.Next()
-	rows.Scan(&idChecker, &storedPassword)
+	rows.Scan(&idChecker, &storedPasswod)
 	if idChecker == "" {
-		return "", nil
+		return "", "", nil
 	}
+	return idChecker, storedPasswod, nil
 
-	if storedPassword == "" {
-		return "", fmt.Errorf("Could not get password from database")
+}
+
+// DeleteToken from a given userID and token
+func (usr *UserRepository) DeleteToken(userID, token string) error {
+	datab := database.NewDatabaseConnection(usr.mysqlconnString)
+	if err := datab.ExecuteNonQuery("DELETE FROM user_tokens where user = ? and token = ?", userID, token); err != nil {
+		return err
 	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password))
-	if err != nil {
-		return "", err
-	}
-
-	tokenString, err := helpers.Tokenize(idChecker)
-	if err != nil {
-		return "", err
-	}
-
-	existsToken, err := usr.CheckToken(tokenString)
-	if err != nil {
-		return "", err
-	}
-
-	if existsToken {
-		return tokenString, nil
-	}
-
-	if err = datab.ExecuteNonQuery("INSERT INTO user_tokens (user, token, last_date_used) VALUES (?,?,NOW())", idChecker, tokenString); err != nil {
-		return "", err
-	}
-
-	return tokenString, nil
+	return nil
 }
 
 // LogOut function
-func (usr *UserRepository) LogOut(token string) error {
+/*func (usr *UserRepository) LogOut(token string) error {
 	user, err := helpers.GetFromToken(token)
 	if err != nil {
 		return err
@@ -126,7 +108,7 @@ func (usr *UserRepository) LogOut(token string) error {
 		return err
 	}
 	return nil
-}
+}*/
 
 // CheckToken function
 func (usr *UserRepository) CheckToken(token string) (bool, error) {
