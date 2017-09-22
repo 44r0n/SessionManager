@@ -11,6 +11,7 @@ func GenerateHash(text string) (string, error) {
 	return string(hashed[:]), nil
 }
 
+//CheckHash from a given hasedText and a Text
 func CheckHash(hashedText, text string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedText), []byte(text))
 }
