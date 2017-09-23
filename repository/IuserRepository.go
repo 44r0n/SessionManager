@@ -8,7 +8,7 @@ import (
 type IUserRepositoryInterface interface {
 	Register(user models.User) error
 	GetIDAndPassword(userName string) (string, string, error)
-	//LogOut(token string) error
+	CreateToken(userID, token string) error
 	DeleteToken(userID, token string) error
 	ExistsUsername(userName string) (bool, error)
 	ExistsEmail(email string) (bool, error)

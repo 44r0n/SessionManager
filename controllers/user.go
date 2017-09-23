@@ -165,7 +165,6 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httpro
 	}
 
 	token, err := helpers.Tokenize(userID)
-
 	if err != nil {
 		log.Printf("Failed generating token: %v", err)
 		return
@@ -173,6 +172,16 @@ func (uc *UserController) Login(w http.ResponseWriter, r *http.Request, p httpro
 
 	w.Header().Set("Content-Type", "application/json")
 	if token != "" {
+		err = uc.userRepo.CreateToken(userID, token)
+		if err != nil {
+			response = models.Response{Status: http.StatusInternalServerError,
+				Error:       codes.DataBaseError,
+				Description: "There was an error with the database"}
+			responseData.Data = response
+			uc.responseToClient(w, responseData)
+			log.Printf("Failed creating token: %v", err)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, `{"Response":{"Status":`+strconv.Itoa(http.StatusOK)+`,"Token":"`+token+`","Error":`+strconv.Itoa(codes.Ok)+`}}`)
 		return
