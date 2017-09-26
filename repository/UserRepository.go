@@ -88,6 +88,15 @@ func (usr *UserRepository) GetIDAndPassword(userName string) (string, string, er
 
 }
 
+//CreateToken from a given userID and token
+func (usr *UserRepository) CreateToken(userID, token string) error {
+	datab := database.NewDatabaseConnection(usr.mysqlconnString)
+	if err := datab.ExecuteNonQuery("INSERT INTO user_tokens (user, token, last_date_used) VALUES(?,?,NOW())", userID, token); err != nil {
+		return err
+	}
+	return nil
+}
+
 // DeleteToken from a given userID and token
 func (usr *UserRepository) DeleteToken(userID, token string) error {
 	datab := database.NewDatabaseConnection(usr.mysqlconnString)
@@ -96,19 +105,6 @@ func (usr *UserRepository) DeleteToken(userID, token string) error {
 	}
 	return nil
 }
-
-// LogOut function
-/*func (usr *UserRepository) LogOut(token string) error {
-	user, err := helpers.GetFromToken(token)
-	if err != nil {
-		return err
-	}
-	datab := database.NewDatabaseConnection(usr.mysqlconnString)
-	if err := datab.ExecuteNonQuery("DELETE FROM user_tokens where user = ? and token = ?", user, token); err != nil {
-		return err
-	}
-	return nil
-}*/
 
 // CheckToken function
 func (usr *UserRepository) CheckToken(token string) (bool, error) {

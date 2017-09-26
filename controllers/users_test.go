@@ -40,9 +40,9 @@ func (usrt *UserRepositoryTest) DeleteToken(userID, token string) error {
 	return usrt.err
 }
 
-/*func (usrt *UserRepositoryTest) LogOut(token string) error {
+func (usrt *UserRepositoryTest) CreateToken(userID, token string) error {
 	return usrt.err
-}*/
+}
 
 func (usrt *UserRepositoryTest) ExistsUsername(userName string) (bool, error) {
 	return usrt.validUser, usrt.err
@@ -363,6 +363,16 @@ func TestLoginOK(t *testing.T) {
 
 		status := rr.Code
 		So(status, ShouldEqual, http.StatusOK)
+		if *database {
+			response := models.ResponseData{}
+			err = json.NewDecoder(rr.Body).Decode(&response)
+			if err != nil {
+				t.Fatalf("Failed decoding json: %v", err)
+			}
+			rr := simulateCheckToken(&repo, response.Data.Token, t)
+			status := rr.Code
+			So(status, ShouldEqual, http.StatusOK)
+		}
 	})
 }
 
